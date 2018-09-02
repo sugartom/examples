@@ -7,6 +7,9 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+import tensorflow as tf
+import numpy as np
+
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 
@@ -41,23 +44,6 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
-
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
-train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ])),
-    batch_size=args.batch_size, shuffle=True, **kwargs)
-test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ])),
-    batch_size=args.test_batch_size, shuffle=True, **kwargs)
-
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -76,72 +62,26 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
-model = Net()
-if args.cuda:
-    model.cuda()
+model = torch.load("./saved_model/exported_mnist")
 
 # params = list(model.named_parameters())
+# print(len(params))
 # for i in range(len(params)):
 #     name, param = params[i]
 #     print("[%s] %s" % (name, param.size()))
 # for i, c in enumerate(model.children()):
-#     print(i, c)
-
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-
-def train(epoch):
-    model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
-        data, target = Variable(data), Variable(target)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+# 	print(i, c)
 
 def test():
     model.eval()
-    test_loss = 0
-    correct = 0
-    for data, target in test_loader:
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, volatile=True), Variable(target)
-        output = model(data)
-        test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).long().cpu().sum()
+    input = torch.ones(1, 1, 28, 28)
+    if args.cuda:
+    	input = input.cuda()
+    input = Variable(input, volatile=True)
+    out = model(input)
+    print(out)
 
-    test_loss /= len(test_loader.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
-
-# def test():
-#     model.eval()
-#     input = torch.ones(1, 1, 28, 28)
-#     if args.cuda:
-#     	input = input.cuda()
-#     input = Variable(input, volatile=True)
-#     out = model(input)
-#     print(out)
-
-for epoch in range(1, args.epochs + 1):
-    train(epoch)
-    # torch.save(model, "./saved_model/exported_mnist")
-    test()
-
-
-
-
-import tensorflow as tf
-import numpy as np
+test()
 
 def conv2d(c, x):
     padding = 'VALID' if c.padding[0] is 0 else 'SAME'
