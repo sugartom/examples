@@ -83,16 +83,30 @@ def test():
 
 test()
 
+
+
+
 def conv2d(c, x):
+
+    # print("input x.shape = %s" % str(x.shape))
+    # print("c.padding[0] = %d" % c.padding[0])
+    # print("c.stride[0] = %d" % c.stride[0])
+    # print("c.kernel_size[0] = %d" % c.kernel_size[0])
+
     padding = 'VALID' if c.padding[0] is 0 else 'SAME'
     filters = c.out_channels
     size = c.kernel_size
     parameters = [p for p in c.parameters()]
     W = parameters[0].data.cpu().numpy()
+
+    # print("W[0,0,0,:] = %s" % W[0,0,0,:])
+
     if len(parameters) > 1:
         b = parameters[1].data.cpu().numpy()
 
     W = np.transpose(W,[2,3,1,0])
+
+    # print("W.shape = %s" % str(W.shape))
 
     wi = tf.constant_initializer(W)
     if len(parameters) > 1:
@@ -109,24 +123,43 @@ def conv2d(c, x):
     if len(parameters) > 1:
         x = tf.nn.bias_add(x, bt)
 
-    x = tf.nn.max_pool(x, [1, c.kernel_size[0], c.kernel_size[1], 1], strides = [1, c.stride[0], c.stride[1], 1], padding = padding)
+    # print("middle x.shape = %s" % str(x.shape))
+
+    # x = tf.nn.max_pool(x, [1, c.kernel_size[0], c.kernel_size[1], 1], strides = [1, c.stride[0], c.stride[1], 1], padding = padding)
+    x = tf.nn.max_pool(x, [1, 2, 2, 1], strides = [1, 2, 2, 1], padding = padding)
 
     x = tf.nn.relu(x)
+
+    # print("output x.shape = %s" % str(x.shape))
 
     return x
 
 def dropout(c, x):
-    return tf.reshape(x, [-1, 320])
+    # print("input x.shape = %s" % str(x.shape))
+    
+    x = tf.reshape(x, [-1, 320])
+
+    # print("output x.shape = %s" % str(x.shape))
+
+    return x
 
 def linear(c, x):
+
+    # print("input x.shape = %s" % str(x.shape))
+
     parameters = [p for p in c.parameters()]
     W = parameters[0].data.cpu().numpy()
+
+    # print("W[0,:] = %s" % W[0,:])
+
     if len(parameters) > 1:
         b = parameters[1].data.cpu().numpy()
 
     # print(W.shape)
     # print(b.shape)
     W = np.transpose(W)
+
+    # print("W.shape = %s" % str(W.shape))
 
     wi = tf.constant_initializer(W)
     if len(parameters) > 1:
@@ -141,6 +174,8 @@ def linear(c, x):
         x = tf.add(x, bt)
 
     x = tf.nn.relu(x)
+
+    # print("output x.shape = %s" % str(x.shape))
 
     return x
 
@@ -172,3 +207,7 @@ sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 scores = sess.run(classifier, feed_dict = {input_image: np.ones([1, 28, 28, 1])})
 print(scores)
+
+# for n in tf.get_default_graph().as_graph_def().node:
+    # print(n.name)
+    # print("[%s] %s" % (n.name, n.shape))
